@@ -15,8 +15,10 @@ import (
 	"net/http"
 	"net/mail"
 	"os"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type CLI struct {
@@ -48,6 +50,9 @@ func main() {
 	var waiter sync.WaitGroup
 
 	cli.From, cli.To = defaultAddresses(cli.Email, cli.From, cli.To)
+	if cli.Ascii && localpartNeedsUTF8(cli.From, cli.To) {
+		fatal("--ascii given, but an address localpart is non-ASCII and can't be sent without SMTPUTF8")
+	}
 	if cli.Ip == "" {
 		conn, err := net.Dial("udp", "8.8.8.8:80")
 		if err == nil {
@@ -166,6 +171,23 @@ func defaultAddresses(email []byte, from, to string) (string, string) {
 		}
 	}
 	return from, to
+}
+
+// localpartNeedsUTF8 reports whether any address has a non-ASCII localpart.
+// (A non-ASCII domain can be A-label encoded, so domains are ignored here.)
+func localpartNeedsUTF8(addrs ...string) bool {
+	for _, a := range addrs {
+		local := a
+		if at := strings.LastIndex(a, "@"); at >= 0 {
+			local = a[:at]
+		}
+		for _, r := range local {
+			if r > unicode.MaxASCII {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // callbackForResults starts a local webserver and prints status updates it receives

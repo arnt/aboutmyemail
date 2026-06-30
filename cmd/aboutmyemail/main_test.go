@@ -1,0 +1,19 @@
+package main
+
+import "testing"
+
+// A non-ASCII Return-Path must be used in preference to From, and survive
+// intact.
+func TestDefaultAddressesPrefersReturnPath(t *testing.T) {
+	email := []byte("Return-Path: <grå@grå.org>\r\n" +
+		"From: Gøril <gøril@example.com>\r\n" +
+		"To: <arnt@grå.org>\r\n" +
+		"Subject: test\r\n\r\nbody\r\n")
+	from, to := defaultAddresses(email, "", "")
+	if from != "grå@grå.org" {
+		t.Errorf("from: want %q, got %q", "grå@grå.org", from)
+	}
+	if to != "arnt@grå.org" {
+		t.Errorf("to: want %q, got %q", "arnt@grå.org", to)
+	}
+}
